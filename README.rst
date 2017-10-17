@@ -93,7 +93,10 @@ Python version::
   cd ./nonlinear_poisson_equation/src/python
   PYTHONPATH="/path/to/opencmisslibs/install/.../.../Release/opencmiss.iron" python nonlinear_poisson_equation.py  
 
-Results can be visualised by running `visualise.com <./src/fortran/visualise.com>`_ with the `Cmgui visualiser <http://physiomeproject.org/software/opencmiss/cmgui/download>`_.
+Verifying the example
+=====================
+
+Results can be visualised by running `visualise.cmgui <./src/fortran/visualise.cmgui>`_ with the `Cmgui visualiser <http://physiomeproject.org/software/opencmiss/cmgui/download>`_.
 
 The following figure shows the finite element mesh (computational domain) and scalar field, |u| (primary variable) and its derivative, |du_dn| (secondary variable).  
  
@@ -112,6 +115,8 @@ The following figure shows the finite element mesh (computational domain) and sc
 |figure1a|  |figure1b|  |figure1c|
 
 Figure 1. (a) Finite element mesh (b) Primary variable solution (c) Secondary variable solution
+    
+The expected results from this example are available in `expected_results <./src/fortran/expected_results>`_ folder.    
     
 Prerequisites
 =============
