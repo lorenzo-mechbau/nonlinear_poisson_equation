@@ -1,6 +1,5 @@
 $name = "nonlinear_poisson_equation";
 
-
 gfx read node $name.part0.exnode;
 gfx read elem $name.part0.exelem;
 
