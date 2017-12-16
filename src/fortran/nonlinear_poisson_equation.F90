@@ -43,7 +43,7 @@ PROGRAM NONLINEAR_POISSON_EQUATION
 
   INTEGER(CMISSIntg) :: NUMBER_DIMENSIONS,INTERPOLATION_TYPE,NUMBER_OF_GAUSS_XI
   INTEGER(CMISSIntg) :: NUMBER_GLOBAL_X_ELEMENTS,NUMBER_GLOBAL_Y_ELEMENTS,NUMBER_GLOBAL_Z_ELEMENTS
-  INTEGER(CMISSIntg) :: component_idx
+  INTEGER(CMISSIntg) :: component_idx,parameter_idx
   INTEGER(CMISSIntg) :: NUMBER_OF_ARGUMENTS,ARGUMENT_LENGTH,STATUS
   CHARACTER(LEN=255) :: COMMAND_ARGUMENT
 
@@ -154,6 +154,8 @@ PROGRAM NONLINEAR_POISSON_EQUATION
   CALL cmfe_CoordinateSystem_CreateStart(CoordinateSystemUserNumber,CoordinateSystem,Err)
   !Set the coordinate system number of dimensions
   CALL cmfe_CoordinateSystem_DimensionSet(CoordinateSystem,NUMBER_DIMENSIONS,Err)
+  !Set the origin
+  CALL cmfe_CoordinateSystem_OriginSet(CoordinateSystemUserNumber,[0.0_CMISSRP,0.0_CMISSRP,0.0_CMISSRP],Err)
   !Finish the creation of the coordinate system
   CALL cmfe_CoordinateSystem_CreateFinish(CoordinateSystem,Err)
 
@@ -242,6 +244,10 @@ PROGRAM NONLINEAR_POISSON_EQUATION
   CALL cmfe_Mesh_Initialise(Mesh,Err)
   CALL cmfe_GeneratedMesh_CreateFinish(GeneratedMesh,MeshUserNumber,Mesh,Err)
 
+  !-----------------------------------------------------------------------------------------------------------
+  ! DECOMPOSITION
+  !-----------------------------------------------------------------------------------------------------------
+
   !Create a decomposition
   CALL cmfe_Decomposition_Initialise(Decomposition,Err)
   CALL cmfe_Decomposition_CreateStart(DecompositionUserNumber,Mesh,Decomposition,Err)
@@ -271,52 +277,98 @@ PROGRAM NONLINEAR_POISSON_EQUATION
   CALL cmfe_GeneratedMesh_GeometricParametersCalculate(GeneratedMesh,GeometricField,Err)
 
   !-----------------------------------------------------------------------------------------------------------
-  ! EQUATIONS SETS
+  ! MATERIAL FIELD
   !-----------------------------------------------------------------------------------------------------------
 
-  !Create the equations_set
-  CALL cmfe_EquationsSet_Initialise(EquationsSet,Err)
-  CALL cmfe_Field_Initialise(EquationsSetField,Err)
-  CALL cmfe_EquationsSet_CreateStart(EquationsSetUserNumber,Region,GeometricField,[CMFE_EQUATIONS_SET_CLASSICAL_FIELD_CLASS, &
-    & CMFE_EQUATIONS_SET_POISSON_EQUATION_TYPE,CMFE_EQUATIONS_SET_EXPONENTIAL_SOURCE_POISSON_SUBTYPE], &
-    & EquationsSetFieldUserNumber,EquationsSetField,EquationsSet,Err)
-  !Finish creating the equations set
-  CALL cmfe_EquationsSet_CreateFinish(EquationsSet,Err)
+  !Create a material field for diagonal components of the rank-2 tensor K and scalars a, b and c in the source term.
+  CALL cmfe_Field_Initialise(MaterialsField,Err)
+  CALL cmfe_Field_CreateStart(MaterialsFieldUserNumber,Region,MaterialsField,Err)
+  !Set the decomposition to use
+  CALL cmfe_Field_MeshDecompositionSet(MaterialsField,Decomposition,Err)
+  !Set the type
+  CALL cmfe_Field_TypeSet(MaterialsField,CMFE_FIELD_MATERIAL_TYPE,Err)
+  !One field variable with five(2D)/six(3D) components
+  CALL cmfe_Field_NumberOfVariablesSet(MaterialsField,1,Err)
+  CALL cmfe_Field_NumberOfComponentsSet(MaterialsField,CMFE_FIELD_U_VARIABLE_TYPE,NUMBER_DIMENSIONS+3,Err)
+  DO parameter_idx=1,NUMBER_DIMENSIONS+3
+    CALL cmfe_Field_ComponentMeshComponentSet(MaterialsField,CMFE_FIELD_U_VARIABLE_TYPE,parameter_idx,1,Err)
+  ENDDO
+  !Set associated geometric field
+  CALL cmfe_Field_GeometricFieldSet(MaterialsField,GeometricField,Err)
+  !Set the label of the field
+  CALL cmfe_Field_VariableLabelSet(MaterialsField,CMFE_FIELD_U_VARIABLE_TYPE,"Parameters",Err)
+  !Finish creating the field
+  CALL cmfe_Field_CreateFinish(MaterialsField,Err)
+
+  !Update material field components
+  !Rank-2 K tensor diagonal components:
+  DO component_idx=1,NUMBER_DIMENSIONS
+    CALL cmfe_Field_ComponentValuesInitialise(MaterialsField,CMFE_FIELD_U_VARIABLE_TYPE,CMFE_FIELD_VALUES_SET_TYPE, &
+        & component_idx,1.0_CMISSRP,Err)
+  ENDDO
+  !a parameter:
+  CALL cmfe_Field_ComponentValuesInitialise(MaterialsField,CMFE_FIELD_U_VARIABLE_TYPE,CMFE_FIELD_VALUES_SET_TYPE, &
+      & NUMBER_DIMENSIONS+1,1.0_CMISSRP,Err)
+  !b parameter:
+  CALL cmfe_Field_ComponentValuesInitialise(MaterialsField,CMFE_FIELD_U_VARIABLE_TYPE,CMFE_FIELD_VALUES_SET_TYPE, &
+      & NUMBER_DIMENSIONS+2,0.5_CMISSRP,Err)
+  !c parameter:
+  CALL cmfe_Field_ComponentValuesInitialise(MaterialsField,CMFE_FIELD_U_VARIABLE_TYPE,CMFE_FIELD_VALUES_SET_TYPE, &
+      & NUMBER_DIMENSIONS+3,1.0_CMISSRP,Err)
 
   !-----------------------------------------------------------------------------------------------------------
   ! DEPENDENT FIELD
   !-----------------------------------------------------------------------------------------------------------
 
-  !Create the equations set dependent field variables
+  !Create dependent fields
   CALL cmfe_Field_Initialise(DependentField,Err)
+  CALL cmfe_Field_CreateStart(DependentFieldUserNumber,Region,DependentField,Err)
+  !Set the decomposition to use
+  CALL cmfe_Field_MeshDecompositionSet(DependentField,Decomposition,Err)
+  !Set the type
+  CALL cmfe_Field_TypeSet(DependentField,CMFE_FIELD_GENERAL_TYPE,Err)
+  CALL cmfe_Field_DependentTypeSet(DependentField,CMFE_FIELD_DEPENDENT_TYPE,Err)
+  !Set associated geometric field
+  CALL cmfe_Field_GeometricFieldSet(DependentField,GeometricField,Err)
+  !Two dependent variables: primary variable 'U' and secondary variable 'DELUDELN'
+  CALL cmfe_Field_NumberOfVariablesSet(DependentField,2,Err)
+  CALL cmfe_Field_DimensionSet(DependentField,CMFE_FIELD_U_VARIABLE_TYPE,CMFE_FIELD_SCALAR_DIMENSION_TYPE,Err)
+  CALL cmfe_Field_DimensionSet(DependentField,CMFE_FIELD_DELUDELN_VARIABLE_TYPE,CMFE_FIELD_SCALAR_DIMENSION_TYPE,Err)
+  CALL cmfe_Field_DOFOrderTypeSet(DependentField,CMFE_FIELD_U_VARIABLE_TYPE,CMFE_FIELD_SEPARATED_COMPONENT_DOF_ORDER,Err)
+  CALL cmfe_Field_DOFOrderTypeSet(DependentField,CMFE_FIELD_DELUDELN_VARIABLE_TYPE,CMFE_FIELD_SEPARATED_COMPONENT_DOF_ORDER,Err)
+  !Set appropriate labels
+  CALL cmfe_Field_VariableLabelSet(DependentField,CMFE_FIELD_U_VARIABLE_TYPE,"U",Err)
+  CALL cmfe_Field_VariableLabelSet(DependentField,CMFE_FIELD_DELUDELN_VARIABLE_TYPE,"DELUDELN",Err)
+  !Finish creating the field
+  CALL cmfe_Field_CreateFinish(DependentField,Err)
+
+  !Update dependent fields (initial guess for iterative solver)
+  CALL cmfe_Field_ComponentValuesInitialise(DependentField,CMFE_FIELD_U_VARIABLE_TYPE,CMFE_FIELD_VALUES_SET_TYPE, &
+    & 1,0.5_CMISSRP,Err)
+  CALL cmfe_Field_ComponentValuesInitialise(DependentField,CMFE_FIELD_DELUDELN_VARIABLE_TYPE,CMFE_FIELD_VALUES_SET_TYPE, &
+    & 1,0.1_CMISSRP,Err)
+
+  !-----------------------------------------------------------------------------------------------------------
+  ! EQUATIONS SETS
+  !-----------------------------------------------------------------------------------------------------------
+
+  !Create the equations_sets
+  CALL cmfe_EquationsSet_Initialise(EquationsSet,Err)
+  CALL cmfe_Field_Initialise(EquationsSetField,Err)
+  !Poisson equation with exponential (nonlinear) source term
+  CALL cmfe_EquationsSet_CreateStart(EquationsSetUserNumber,Region,GeometricField,[CMFE_EQUATIONS_SET_CLASSICAL_FIELD_CLASS, &
+    & CMFE_EQUATIONS_SET_POISSON_EQUATION_TYPE,CMFE_EQUATIONS_SET_EXPONENTIAL_SOURCE_POISSON_SUBTYPE], &
+    & EquationsSetFieldUserNumber,EquationsSetField,EquationsSet,Err)
+  !Finish creating eqiations sets
+  CALL cmfe_EquationsSet_CreateFinish(EquationsSet,Err)
+
+  !Attach dependent field already created to equation sets
   CALL cmfe_EquationsSet_DependentCreateStart(EquationsSet,DependentFieldUserNumber,DependentField,Err)
-  !Finish the equations set dependent field variables
   CALL cmfe_EquationsSet_DependentCreateFinish(EquationsSet,Err)
 
-  !Initialise the field values
-  CALL cmfe_Field_ComponentValuesInitialise(DependentField,CMFE_FIELD_U_VARIABLE_TYPE,CMFE_FIELD_VALUES_SET_TYPE,1,0.5_CMISSRP, &
-    & Err)
-
-  !-----------------------------------------------------------------------------------------------------------
-  ! MATERIAL FIELD
-  !-----------------------------------------------------------------------------------------------------------
-
-  !Create the equations set material field variables
-  CALL cmfe_Field_Initialise(MaterialsField,Err)
+  !Attach material field already created to equation sets
   CALL cmfe_EquationsSet_MaterialsCreateStart(EquationsSet,MaterialsFieldUserNumber,MaterialsField,Err)
-  !Finish the equations set dependent field variables
   CALL cmfe_EquationsSet_MaterialsCreateFinish(EquationsSet,Err)
-  !K parameters:
-  DO component_idx=1,NUMBER_DIMENSIONS
-    CALL cmfe_Field_ComponentValuesInitialise(MaterialsField,CMFE_FIELD_U_VARIABLE_TYPE,CMFE_FIELD_VALUES_SET_TYPE, &
-        & component_idx,1.0_CMISSRP,Err)
-  ENDDO
-  !A parameter:
-  CALL cmfe_Field_ComponentValuesInitialise(MaterialsField,CMFE_FIELD_U_VARIABLE_TYPE,CMFE_FIELD_VALUES_SET_TYPE, &
-      & NUMBER_DIMENSIONS+1,1.0_CMISSRP,Err)
-  !B parameter:
-  CALL cmfe_Field_ComponentValuesInitialise(MaterialsField,CMFE_FIELD_U_VARIABLE_TYPE,CMFE_FIELD_VALUES_SET_TYPE, &
-      & NUMBER_DIMENSIONS+2,0.5_CMISSRP,Err)
 
   !-----------------------------------------------------------------------------------------------------------
   ! EQUATIONS
@@ -446,6 +498,7 @@ PROGRAM NONLINEAR_POISSON_EQUATION
     CALL cmfe_Fields_Finalise(Fields,Err)
   ENDIF
 
+
   !Finialise CMISS
   CALL cmfe_Finalise(Err)
 
@@ -466,6 +519,3 @@ CONTAINS
   END SUBROUTINE HANDLE_ERROR
 
 END PROGRAM NONLINEAR_POISSON_EQUATION
-
-
-
