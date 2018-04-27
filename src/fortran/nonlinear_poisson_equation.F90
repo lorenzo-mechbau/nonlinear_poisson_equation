@@ -1,4 +1,4 @@
-PROGRAM NONLINEAR_POISSON_EQUATION
+PROGRAM NonlinearPoissonEquation
 
   USE OpenCMISS
   USE OpenCMISS_Iron
@@ -61,7 +61,8 @@ PROGRAM NONLINEAR_POISSON_EQUATION
   TYPE(cmfe_BasisType) :: Basis
   TYPE(cmfe_BoundaryConditionsType) :: BoundaryConditions
   TYPE(cmfe_ComputationEnvironmentType) :: computationEnvironment
-  TYPE(cmfe_CoordinateSystemType) :: CoordinateSystem,WorldCoordinateSystem
+  TYPE(cmfe_ContextType) :: context
+  TYPE(cmfe_CoordinateSystemType) :: CoordinateSystem
   TYPE(cmfe_DecompositionType) :: Decomposition
   TYPE(cmfe_EquationsType) :: Equations
   TYPE(cmfe_EquationsSetType) :: EquationsSet
@@ -134,16 +135,20 @@ PROGRAM NONLINEAR_POISSON_EQUATION
   ENDIF
 
   !Intialise OpenCMISS
-  CALL cmfe_Initialise(WorldCoordinateSystem,WorldRegion,Err)
-
+  CALL cmfe_Context_Initialise(context,err)
+  CALL cmfe_Initialise(context,err)
   !Trap all errors
-  CALL cmfe_ErrorHandlingModeSet(CMFE_ERRORS_TRAP_ERROR,Err)
+  CALL cmfe_ErrorHandlingModeSet(CMFE_ERRORS_TRAP_ERROR,err)
+  !Get the world retion
+  CALL cmfe_Region_Initialise(worldRegion,err)
+  CALL cmfe_Context_WorldRegionGet(context,worldRegion,err)
 
   !Output to a file
   CALL cmfe_OutputSetOn("nonlinear_poisson_equation",Err)
 
   !Get the computational nodes information
   CALL cmfe_ComputationEnvironment_Initialise(computationEnvironment,err)
+  CALL cmfe_Context_ComputationEnvironmentGet(context,computationEnvironment,err)
   CALL cmfe_ComputationEnvironment_NumberOfWorldNodesGet(computationEnvironment,numberOfComputationalNodes,err)
   CALL cmfe_ComputationEnvironment_WorldNodeNumberGet(computationEnvironment,computationalNodeNumber,err)
 
@@ -153,11 +158,11 @@ PROGRAM NONLINEAR_POISSON_EQUATION
 
   !Start the creation of a new RC coordinate system
   CALL cmfe_CoordinateSystem_Initialise(CoordinateSystem,Err)
-  CALL cmfe_CoordinateSystem_CreateStart(CoordinateSystemUserNumber,CoordinateSystem,Err)
+  CALL cmfe_CoordinateSystem_CreateStart(CoordinateSystemUserNumber,context,CoordinateSystem,Err)
   !Set the coordinate system number of dimensions
   CALL cmfe_CoordinateSystem_DimensionSet(CoordinateSystem,NUMBER_DIMENSIONS,Err)
   !Set the origin
-  CALL cmfe_CoordinateSystem_OriginSet(CoordinateSystemUserNumber,[0.0_CMISSRP,0.0_CMISSRP,0.0_CMISSRP],Err)
+  CALL cmfe_CoordinateSystem_OriginSet(CoordinateSystem,[0.0_CMISSRP,0.0_CMISSRP,0.0_CMISSRP],Err)
   !Finish the creation of the coordinate system
   CALL cmfe_CoordinateSystem_CreateFinish(CoordinateSystem,Err)
 
@@ -180,7 +185,7 @@ PROGRAM NONLINEAR_POISSON_EQUATION
 
   !Start the creation of a basis (default is trilinear lagrange)
   CALL cmfe_Basis_Initialise(Basis,Err)
-  CALL cmfe_Basis_CreateStart(BasisUserNumber,Basis,Err)
+  CALL cmfe_Basis_CreateStart(BasisUserNumber,context,Basis,Err)
   CALL cmfe_Basis_NumberOfXiSet(Basis,NUMBER_DIMENSIONS,Err)
   SELECT CASE(INTERPOLATION_TYPE)
   CASE(1,2,3,4)
@@ -392,7 +397,7 @@ PROGRAM NONLINEAR_POISSON_EQUATION
 
   !Start the creation of a problem.
   CALL cmfe_Problem_Initialise(Problem,Err)
-  CALL cmfe_Problem_CreateStart(ProblemUserNumber,[CMFE_PROBLEM_CLASSICAL_FIELD_CLASS,CMFE_PROBLEM_POISSON_EQUATION_TYPE, &
+  CALL cmfe_Problem_CreateStart(ProblemUserNumber,context,[CMFE_PROBLEM_CLASSICAL_FIELD_CLASS,CMFE_PROBLEM_POISSON_EQUATION_TYPE, &
     & CMFE_PROBLEM_NONLINEAR_SOURCE_POISSON_SUBTYPE],Problem,Err)
   !Finish the creation of a problem.
   CALL cmfe_Problem_CreateFinish(Problem,Err)
@@ -502,7 +507,7 @@ PROGRAM NONLINEAR_POISSON_EQUATION
 
 
   !Finialise CMISS
-  CALL cmfe_Finalise(Err)
+  CALL cmfe_Finalise(context,Err)
 
   WRITE(*,'(A)') "Program successfully completed."
 
@@ -520,4 +525,4 @@ CONTAINS
 
   END SUBROUTINE HANDLE_ERROR
 
-END PROGRAM NONLINEAR_POISSON_EQUATION
+END PROGRAM NonlinearPoissonEquation
