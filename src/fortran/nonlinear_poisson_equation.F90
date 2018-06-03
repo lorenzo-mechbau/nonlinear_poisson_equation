@@ -272,7 +272,7 @@ PROGRAM NonlinearPoissonEquation
   CALL cmfe_Field_Initialise(GeometricField,Err)
   CALL cmfe_Field_CreateStart(GeometricFieldUserNumber,Region,GeometricField,Err)
   !Set the decomposition to use
-  CALL cmfe_Field_MeshDecompositionSet(GeometricField,Decomposition,Err)
+  CALL cmfe_Field_DecompositionSet(GeometricField,Decomposition,Err)
   !Set the domain to be used by the field components.
   DO component_idx=1,NUMBER_DIMENSIONS
     CALL cmfe_Field_ComponentMeshComponentSet(GeometricField,CMFE_FIELD_U_VARIABLE_TYPE,component_idx,1,Err)
@@ -291,7 +291,7 @@ PROGRAM NonlinearPoissonEquation
   CALL cmfe_Field_Initialise(MaterialsField,Err)
   CALL cmfe_Field_CreateStart(MaterialsFieldUserNumber,Region,MaterialsField,Err)
   !Set the decomposition to use
-  CALL cmfe_Field_MeshDecompositionSet(MaterialsField,Decomposition,Err)
+  CALL cmfe_Field_DecompositionSet(MaterialsField,Decomposition,Err)
   !Set the type
   CALL cmfe_Field_TypeSet(MaterialsField,CMFE_FIELD_MATERIAL_TYPE,Err)
   !One field variable with five(2D)/six(3D) components
@@ -331,7 +331,7 @@ PROGRAM NonlinearPoissonEquation
   CALL cmfe_Field_Initialise(DependentField,Err)
   CALL cmfe_Field_CreateStart(DependentFieldUserNumber,Region,DependentField,Err)
   !Set the decomposition to use
-  CALL cmfe_Field_MeshDecompositionSet(DependentField,Decomposition,Err)
+  CALL cmfe_Field_DecompositionSet(DependentField,Decomposition,Err)
   !Set the type
   CALL cmfe_Field_TypeSet(DependentField,CMFE_FIELD_GENERAL_TYPE,Err)
   CALL cmfe_Field_DependentTypeSet(DependentField,CMFE_FIELD_DEPENDENT_TYPE,Err)
